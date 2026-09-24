@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -83,12 +82,13 @@ func (r *WebAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 	foundCM := &corev1.ConfigMap{}
 	err = r.Get(ctx, types.NamespacedName{Name: desiredCM.Name, Namespace: desiredCM.Namespace}, foundCM)
-	 if apierrors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		log.Info("Creating ConfigMap", "name", desiredCM.Name)
 		if err := r.Create(ctx, desiredCM); err != nil {
 			return ctrl.Result{}, err
-	} else if err != nil {
-		return ctrl.Result{}, err
+		} else if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	// TODO(user): your logic here
@@ -134,19 +134,16 @@ func deploymentFor(w *webappv1.WebApp) *appsv1.Deployment {
 }
 
 func configMapFor(w *webappv1.WebApp) *corev1.ConfigMap {
-	
-	return &corev1.ConfigMap{
-		ObjectMeta:  metav1.ObjectMeta {
-			Name: w.Name + "-config",
-			Namespace: w.Namespace,
-			Labels: map[string]string{"app": w.Name},
 
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      w.Name + "-config",
+			Namespace: w.Namespace,
+			Labels:    map[string]string{"app": w.Name},
 		},
 		Data: map[string]string{
-			"welcome.html": "<h1> Hello from" + w.Name + "</h1>", 
+			"welcome.html": "<h1> Hello from" + w.Name + "</h1>",
 		},
-
-
 	}
 
 }
