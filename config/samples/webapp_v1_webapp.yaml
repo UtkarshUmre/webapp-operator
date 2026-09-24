@@ -7,3 +7,5 @@ metadata:
   name: webapp-sample
 spec:
   # TODO(user): Add fields here
+  size: 3
+  image: "nginx:alpine"

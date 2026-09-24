@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -91,6 +92,24 @@ func (r *WebAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
+	desiredService := serviceFor(&webapp)
+	if err := controllerutil.SetControllerReference(&webapp, desiredService, r.Scheme); err != nil {
+		return ctrl.Result{}, err
+	}
+	foundService := &corev1.Service{}
+	err = r.Get(ctx, types.NamespacedName{Name: desiredService.Name, Namespace: desiredService.Namespace}, foundService)
+	if apierrors.IsNotFound(err) {
+		log.Info("Creating Service", "name", desiredService.Name)
+		if err := r.Create(ctx, desiredService); err != nil {
+			return ctrl.Result{}, err
+		}
+	} else if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+
+
 	// TODO(user): your logic here
 
 	return ctrl.Result{}, nil
@@ -142,10 +161,33 @@ func configMapFor(w *webappv1.WebApp) *corev1.ConfigMap {
 			Labels:    map[string]string{"app": w.Name},
 		},
 		Data: map[string]string{
-			"welcome.html": "<h1> Hello from" + w.Name + "</h1>",
+			"welcome.html": "<h1> Hello from " + w.Name + "</h1>",
 		},
 	}
 
+}
+
+func serviceFor(w *webappv1.WebApp) *corev1.Service {
+
+	labels := map[string]string{"app": w.Name}
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      w.Name + "-service",
+			Namespace: w.Namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Type:     corev1.ServiceTypeNodePort,
+			Selector: labels,
+			Ports: []corev1.ServicePort{
+				{
+
+					Port:       8080,
+					TargetPort: intstr.FromInt32(80),
+				},
+			},
+		},
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
